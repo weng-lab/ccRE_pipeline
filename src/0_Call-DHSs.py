@@ -1,37 +1,30 @@
-#!/bin/bash
-#SBATCH --nodes 1
-#SBATCH --time=12:00:00
-#SBATCH --mem=1G
-#SBATCH --array=1-80
-#SBATCH --output=/home/moorej3/Job-Logs/jobid_%A_%a.output
-#SBATCH --error=/home/moorej3/Job-Logs/jobid_%A_%a.error
-#SBATCH --partition=12hours
+#!/usr/bin/env python3
 
+import os
+import sys
+import argparse
+import tempfile
 
-genome=hg38
-jid=$SLURM_ARRAY_TASK_ID
+class CallDHSs(object):
+    def __init__(self, args):
+        self.args = args
+        self.genome = args.genome
+        self.minP = 4942
 
-dataDir=~/Lab/ENCODE/Encyclopedia/V5/$genome-DNase/Version4
-scriptDir=~/Projects/ENCODE/Encyclopedia/Version5/cRE-Pipeline
-hotspots=$dataDir/list
-bedtools=~/bin/bedtools2/bin/bedtools
+    def run(self):
+        with tempfile.TemporaryDirectory() as tmpDir:
+            try:
+                self._run(tmpDir)
+                return 0
+            except:
+                raise
+                return 1
 
-minP=4942
-
-
-mkdir -p /tmp/moorej3/$SLURM_JOBID-$jid
-cd /tmp/moorej3/$SLURM_JOBID-$jid
-
-dset=$(cat $hotspots  | awk '{if (NR == '$jid') print $1}')
-bam=$(cat $hotspots  | awk '{if (NR == '$jid') print $2}')
-
-#wget https://www.encodeproject.org/files/$bam/@@download/$bam.bed.gz
-#gunzip $bam.bed.gz
-#enrich=/data/projects/encode/data/$dset/$bam.bam.hotspots.double/$bam.allcalls.starch
-
-#if [ ! -f $enrich ]; then
-enrich=/data/projects/encode/data/$dset/$bam.bam.hotspots/$bam.allcalls.starch
-#fi
+    def _run(self, tmpDir):
+        enrichFnp = os.path.join("/data/projects/encode/data",
+                                 self.args.DNaseExpAcc,
+                                 self.args.DNaseBamAcc + ".bam.hotspots",
+                                 self.args.DNaseBamAcc + ".allcalls.starch")
 
 ~/bin/bedops/unstarch $enrich > $bam.bed
 
@@ -68,3 +61,21 @@ mv $bam.Excluded.bed $bam.DHSs.bed $dataDir/Processed-DHSs/
 #mv * $dataDir/Processed-DHSs/
 
 rm -r /tmp/moorej3/$SLURM_JOBID-$jid
+
+def parseArgs():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--genome", type = str, help = "genome")
+    parser.add_argument("--DNaseExpAcc", type = str, help = "DNase experiment accession")
+    parser.add_argument("--DNaseBamAcc", type = str, help = "DNase BAM file accession")
+    parser.add_argument("--DNaseBigWigAcc", type = str, help = "DNase BigWig file accession")
+    parser.add_argument("--inputRow", type = int, default=0, help = "row number in input file")
+    return parser.parse_args()
+
+def main():
+    args = parseArgs()
+    print("args:", args)
+    return CallDHSs(args).run()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
