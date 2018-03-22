@@ -5,6 +5,8 @@ import sys
 import argparse
 import tempfile
 
+from utils import Utils, printt
+
 class CallDHSs(object):
     def __init__(self, args):
         self.args = args
@@ -26,21 +28,31 @@ class CallDHSs(object):
                                  self.args.DNaseBamAcc + ".bam.hotspots",
                                  self.args.DNaseBamAcc + ".allcalls.starch")
 
-~/bin/bedops/unstarch $enrich > $bam.bed
+        bedFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + ".bed")
+        cmds = ["unstarch",
+                enrichFnp,
+                '>', bedFnp]
+        printt("unstarch-ing", enrichFnp)
+        Utils.runCmds(cmds)
 
-echo "Step 1 ..." >> ~/Job-Logs/jobid_$SLURM_JOBID"_"$jid.error
-cp $bam.bed 1
-for j in `seq 2 1 $minP`
-do
-    cutoff=$(awk 'BEGIN{print "1E-'$j'"}')
-    echo $cutoff >> ~/Job-Logs/jobid_$SLURM_JOBID"_"$jid.error
-    python $scriptDir/filter.long.double.py 1 $cutoff > 2
-    $bedtools merge -d 1 -c 5 -o min -i 2 | \
-        awk '{if ($3-$2 > 50) print $0}' > $bam.$cutoff.bed
-    mv 2 1
-    num=$(wc -l $bam.$cutoff.bed | awk '{print $1}')
-    echo $cutoff $num
-done
+
+        printt("Step 1 ...")
+        inputFnp = bedFnp + ".input"
+        outputFnp = bedFnp + ".output"
+        shutil.copyfile(bedFnp, inputFnp)
+
+        for i in range(2, self.minP + 1):
+            cutoff = "1E-" + str(i)
+            cutoffFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + '.' + cutoff + ".bed")
+
+
+            python $scriptDir/filter.long.double.py 1 $cutoff > 2
+            $bedtools merge -d 1 -c 5 -o min -i 2 | \
+                awk '{if ($3-$2 > 50) print $0}' > $bam.$cutoff.bed
+            mv 2 1
+            num=$(wc -l $bam.$cutoff.bed | awk '{print $1}')
+            printt(cutoff, num)
+
 
 echo "Step 2 ..." >> ~/Job-Logs/jobid_$SLURM_JOBID"_"$jid.error
 cutoff=1E-2
