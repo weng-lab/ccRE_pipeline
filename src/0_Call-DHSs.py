@@ -110,7 +110,7 @@ class CallDHSs(object):
                 '>', excludedFnp]
         Utils.runCmds(cmds)
 
-        outputDir = "/home/mjp/output/Processed-DHSs"
+        outputDir = "/output/Processed-DHSs"
         Utils.mkdir_p(outputDir)
         shutil.copy(excludedFnp, outputDir)
         shutil.copy(dhssFnp, outputDir)
