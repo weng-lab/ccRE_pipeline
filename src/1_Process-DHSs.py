@@ -1,39 +1,44 @@
-#!/bin/bash
-#SBATCH --nodes 1
-#SBATCH --time=00:30:00
-#SBATCH --mem=5G
-#SBATCH --array=1-761
-#SBATCH --output=/home/moorej3/Job-Logs/jobid_%A_%a.output
-#SBATCH --error=/home/moorej3/Job-Logs/jobid_%A_%a.error
+#!/usr/bin/env python3
 
-genome=hg38
-j=$SLURM_ARRAY_TASK_ID
+import os
+import sys
+import argparse
+import tempfile
+import shutil
+from decimal import Decimal
 
-dataDir=~/Lab/ENCODE/Encyclopedia/V5/$genome-DNase
-scriptDir=~/Projects/ENCODE/Encyclopedia/Version5/cRE-Pipeline
-hotspots=$dataDir/$genome-Hotspot-List.txt
-#hotspots=$dataDir/mod-hotspot.txt
+from helpers.utils import Utils, printt, numLines
 
-mkdir -p /tmp/moorej3/$SLURM_JOBID-$j
-cd /tmp/moorej3/$SLURM_JOBID-$j
+class ProcessDHSs(object):
+    def __init__(self, args):
+        self.args = args
+
+    def run(self):
+        dhsFnp = os.path.join("/output/Processed-DHSs", self.args.DNaseExpAcc + ".DHSs.bed")
+        signalFnp = os.path.join("/data/projects/encode/data", self.args.DNaseExpAcc, self.args.DNaseBigWigAcc + ".bigWig")
+
+        cp $dhs bed
+        awk '{print $1 "\t" $2 "\t" $3 "\t" "'$dpeak'-"NR "\t" $4}' bed | sort -k4,4 > new
+        awk '{print $1 "\t" $2 "\t" $3 "\t" $4}' new > new.bed
+        ~/bin/bigWigAverageOverBed $signal new.bed out.tab
+        python $scriptDir/calculate.zscore.sh out.tab | sort -k1,1 > 1
+        paste new 1 | awk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $7 "\t" "." "\t" $8 "\t" 1 "\t" $5}' > output.$j
+
+        mkdir -p $dataDir/Processed-DHSs/
+        mv output.$j $dataDir/Processed-DHSs/
+
+def parseArgs():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--debug', action="store_true", default=False)
+    parser.add_argument("--DNaseExpAcc", type = str, help = "DNase experiment accession")
+    parser.add_argument("--DNaseBigWigAcc", type = str, help = "DNase BigWig file accession")
+    return parser.parse_args()
+
+def main():
+    args = parseArgs()
+    print("args:", args)
+    return CallDHSs(args).run()
 
 
-dset=$(cat $hotspots  | awk '{if (NR == '$j') print $1}')
-dpeak=$(cat $hotspots  | awk '{if (NR == '$j') print $2}')
-dsig=$(cat $hotspots  | awk '{if (NR == '$j') print $3}')
-
-#dhs=/data/projects/encode/data/$dset/$dpeak.bed.gz
-dhs=$dataDir/Version4/Processed-DHSs/$dpeak.DHSs.bed 
-signal=/data/projects/encode/data/$dset/$dsig.bigWig
-
-cp $dhs bed
-awk '{print $1 "\t" $2 "\t" $3 "\t" "'$dpeak'-"NR "\t" $4}' bed | sort -k4,4 > new
-awk '{print $1 "\t" $2 "\t" $3 "\t" $4}' new > new.bed
-~/bin/bigWigAverageOverBed $signal new.bed out.tab
-python $scriptDir/calculate.zscore.sh out.tab | sort -k1,1 > 1
-paste new 1 | awk '{print $1 "\t" $2 "\t" $3 "\t" $4 "\t" $7 "\t" "." "\t" $8 "\t" 1 "\t" $5}' > output.$j
-
-mkdir -p $dataDir/Processed-DHSs/
-mv output.$j $dataDir/Processed-DHSs/
-
-rm -r /tmp/moorej3/$SLURM_JOBID-$j
+if __name__ == "__main__":
+    sys.exit(main())

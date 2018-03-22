@@ -26,7 +26,6 @@ def filterByDecimal(inFnp, outFnp, thresholdInt):
 class CallDHSs(object):
     def __init__(self, args):
         self.args = args
-        self.genome = args.genome
 
     def run(self):
         tmpDir = tempfile.mkdtemp()
@@ -118,7 +117,6 @@ class CallDHSs(object):
 def parseArgs():
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action="store_true", default=False)
-    parser.add_argument("--genome", type = str, help = "genome")
     parser.add_argument("--DNaseExpAcc", type = str, help = "DNase experiment accession")
     parser.add_argument("--DNaseBamAcc", type = str, help = "DNase BAM file accession")
     parser.add_argument("--minP", type = int, default=4942,
