@@ -5,7 +5,6 @@ import sys
 import argparse
 import tempfile
 import shutil
-from decimal import Decimal
 
 from helpers.utils import Utils, printt, numLines
 
@@ -37,7 +36,7 @@ def parseArgs():
 def main():
     args = parseArgs()
     print("args:", args)
-    return CallDHSs(args).run()
+    return ProcessDHSs(args).run()
 
 
 if __name__ == "__main__":
