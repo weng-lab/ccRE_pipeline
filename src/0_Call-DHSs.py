@@ -52,18 +52,19 @@ class CallDHSs(object):
         printt("unstarch-ing", enrichFnp)
         Utils.runCmds(cmds)
 
-
         printt("Step 1 ...")
         inputFnp = bedFnp
 
         for i in range(2, self.minP + 1):
             cutoff = "1E-" + str(i)
+            printt("starting", cutoff)
             outputFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + '.' + cutoff + ".all.bed")
             filterByDecimal(inputFnp, outputFnp, i)
 
             mergeAndSizeFilteredFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + '.' + cutoff + ".bed")
             cmds = ["bedtools",
-                    "merge -d 1 -c 5 -o min -i 2",
+                    "merge -d 1 -c 5 -o min",
+                    "-i", outputFnp,
                     '|', """awk '{if ($3-$2 > 50) print $0}'""",
                     '>', mergeAndSizeFilteredFnp]
             Utils.runCmds(cmds)
