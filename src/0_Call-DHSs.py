@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 import tempfile
+import shutil
 from decimal import Decimal
 
 from helpers.utils import Utils, printt, numLines
@@ -14,7 +15,7 @@ def filterByDecimal(inFnp, outFnp, thresholdInt):
             for line in inF:
                 fdr = str(line.rstrip().split("\t")[4])
                 if "e" not in fdr and "E" not in fdr:
-                    fdr=str('%.2E' % Decimal(fdr))
+                    fdr = str('%.2E' % Decimal(fdr))
                 if "+" in fdr:
                     outF.write(line)
                 else:
@@ -29,7 +30,7 @@ class CallDHSs(object):
 
     def run(self):
         tmpDir = tempfile.mkdtemp()
-        print("tmpDir is", tmpDir)
+        printt("tmpDir is", tmpDir)
         try:
             self._run(tmpDir)
             if not self.args.debug:
@@ -96,7 +97,7 @@ class CallDHSs(object):
             Utils.runCmds(cmds)
 
         dhssFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + ".DHSs.bed")
-        shutil.movefile(peaksFnp, dhssFnp)
+        shutil.move(peaksFnp, dhssFnp)
 
         excludedFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + ".excluded.bed")
         cmds = ["bedtools",
@@ -109,7 +110,7 @@ class CallDHSs(object):
 
         outputDir = "/home/mjp/output/Processed-DHSs"
         Utils.mkdir_p(outputDir)
-        shutil.movefile(excludedFnp, outputDir)
+        shutil.move(excludedFnp, outputDir)
         shutil.move(dhssFnp, outputDir)
 
 def parseArgs():
