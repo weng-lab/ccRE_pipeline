@@ -9,6 +9,8 @@ RUN git clone --branch v2.27.1 --single-branch https://github.com/arq5x/bedtools
 
 RUN wget -q https://github.com/bedops/bedops/releases/download/v2.4.32/bedops_linux_x86_64-v2.4.32.tar.bz2 && mkdir -p bedops_tmp && tar -C bedops_tmp -jxf bedops_linux_x86_64-v2.4.32.tar.bz2 && mv bedops_tmp/bin/* /usr/local/bin && rm -rf bedops_tmp bedops_linux_x86_64-v2.4.32.tar.bz2
 
+RUN pip3 install --user six requests python-dateutil
+
 RUN mkdir -p /app/
 #COPY ./src /app/src
 #COPY ./input /app/input

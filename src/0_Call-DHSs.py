@@ -4,8 +4,23 @@ import os
 import sys
 import argparse
 import tempfile
+from decimal import Decimal
 
-from utils import Utils, printt
+from helpers.utils import Utils, printt, numLines
+
+def filterByDecimal(inFnp, outFnp, thresholdInt):
+    with open(inFnp) as inF:
+        with open(outFnp, 'w') as outF:
+            for line in inF:
+                fdr = str(line.rstrip().split("\t")[4])
+                if "e" not in fdr and "E" not in fdr:
+                    fdr=str('%.2E' % Decimal(fdr))
+                if "+" in fdr:
+                    outF.write(line)
+                else:
+                    order = int(fdr.split("-")[1])
+                    if order > thresholdInt:
+                        outF.write(line)
 
 class CallDHSs(object):
     def __init__(self, args):
@@ -14,13 +29,15 @@ class CallDHSs(object):
         self.minP = 4942
 
     def run(self):
-        with tempfile.TemporaryDirectory() as tmpDir:
-            try:
-                self._run(tmpDir)
-                return 0
-            except:
-                raise
-                return 1
+        tmpDir = tempfile.mkdtemp()
+        print("tmpDir is", tmpDir)
+        try:
+            self._run(tmpDir)
+            if not self.args.debug:
+                shutil.rmtree(tmpDir)
+            return 0
+        except:
+            raise
 
     def _run(self, tmpDir):
         enrichFnp = os.path.join("/data/projects/encode/data",
@@ -37,50 +54,67 @@ class CallDHSs(object):
 
 
         printt("Step 1 ...")
-        inputFnp = bedFnp + ".input"
-        outputFnp = bedFnp + ".output"
-        shutil.copyfile(bedFnp, inputFnp)
+        inputFnp = bedFnp
 
         for i in range(2, self.minP + 1):
             cutoff = "1E-" + str(i)
-            cutoffFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + '.' + cutoff + ".bed")
+            outputFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + '.' + cutoff + ".all.bed")
+            filterByDecimal(inputFnp, outputFnp, i)
 
-
-            python $scriptDir/filter.long.double.py 1 $cutoff > 2
-            $bedtools merge -d 1 -c 5 -o min -i 2 | \
-                awk '{if ($3-$2 > 50) print $0}' > $bam.$cutoff.bed
-            mv 2 1
-            num=$(wc -l $bam.$cutoff.bed | awk '{print $1}')
+            mergeAndSizeFilteredFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + '.' + cutoff + ".bed")
+            cmds = ["bedtools",
+                    "merge -d 1 -c 5 -o min -i 2",
+                    '|', """awk '{if ($3-$2 > 50) print $0}'""",
+                    '>', mergeAndSizeFilteredFnp]
+            Utils.runCmds(cmds)
+            num = numLines(mergeAndSizeFilteredFnp)
             printt(cutoff, num)
+            inputFnp = outputFnp
 
+        printt("Step 2 ...")
+        peaksFnp = os.path.join(tmpDir, "peaks")
+        tmpFnp = os.path.join(tmpDir, "tmp")
+        cmds = ["""awk '{if ($3-$2+1 < 350) print $0}'""",
+                outputFnp,
+                '>', peaksFnp]
+        for i in range(3, self.minP + 1):
+            cutoff = "1E-" + str(i)
+            cmds = ["bedtools",
+                    "intersect",
+                    "-v",
+                    "-a", outputFnp,
+                    "-b", peaksFnp,
+                    '>',  tmpFnp]
+            Utils.runCmds(cmds)
 
-echo "Step 2 ..." >> ~/Job-Logs/jobid_$SLURM_JOBID"_"$jid.error
-cutoff=1E-2
-awk '{if ($3-$2+1 < 350) print $0}' $bam.$cutoff.bed > peaks
-for j in `seq 3 1 $minP`
-do
-    echo -e "\t" $j >> ~/Job-Logs/jobid_$SLURM_JOBID"_"$jid.error
-    cutoff=$(awk 'BEGIN{print "1E-'$j'"}')
-    $bedtools intersect -v -a $bam.$cutoff.bed -b peaks > tmp
-    awk '{if ($3-$2+1 < 350) print $0}' tmp >> peaks
-done
-mv peaks $bam.DHSs.bed
+            cmds = [""" awk '{if ($3-$2+1 < 350) print $0}' """,
+                    tmpFnp,
+                    '>>', peaksFnp]
+            Utils.runCmds(cmds)
 
-$bedtools intersect -v -a $bam.1E-$minP.bed -b $bam.DHSs.bed > $bam.Excluded.bed
+        dhssFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + ".DHSs.bed")
+        shutil.movefile(peaksFnp, dhssFnp)
 
-mkdir -p $dataDir/Processed-DHSs
-mv $bam.Excluded.bed $bam.DHSs.bed $dataDir/Processed-DHSs/
-#mv * $dataDir/Processed-DHSs/
+        excludedFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + ".excluded.bed")
+        cmds = ["bedtools",
+                "intersect",
+                "-v",
+                "-a", os.path.join(tmpDir, self.args.DNaseBamAcc + '.' + "1E-" + str(self.minP) + ".bed"),
+                "-b", dhssFnp,
+                '>', excludedFnp]
+        Utils.runCmds(cmds)
 
-rm -r /tmp/moorej3/$SLURM_JOBID-$jid
+        outputDir = "/home/mjp/output/Processed-DHSs"
+        Utils.mkdir_p(outputDir)
+        shutil.movefile(excludedFnp, outputDir)
+        shutil.move(dhssFnp, outputDir)
 
 def parseArgs():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--debug', action="store_true", default=False)
     parser.add_argument("--genome", type = str, help = "genome")
     parser.add_argument("--DNaseExpAcc", type = str, help = "DNase experiment accession")
     parser.add_argument("--DNaseBamAcc", type = str, help = "DNase BAM file accession")
-    parser.add_argument("--DNaseBigWigAcc", type = str, help = "DNase BigWig file accession")
-    parser.add_argument("--inputRow", type = int, default=0, help = "row number in input file")
     return parser.parse_args()
 
 def main():
