@@ -55,9 +55,9 @@ class CallDHSs(object):
         printt("Step 1 ...")
         inputFnp = bedFnp
 
+        finalFnp = ""
         for i in range(2, self.args.minP + 1):
             cutoff = "1E-" + str(i)
-            printt("starting", cutoff)
             outputFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + '.' + cutoff + ".all.bed")
             filterByDecimal(inputFnp, outputFnp, i)
 
@@ -69,7 +69,10 @@ class CallDHSs(object):
                     '>', mergeAndSizeFilteredFnp]
             Utils.runCmds(cmds)
             num = numLines(mergeAndSizeFilteredFnp)
+            if 0 == num:
+                break
             printt(cutoff, num)
+            finalFnp = outputFnp
             inputFnp = outputFnp
 
         printt("Step 2 ...")
@@ -82,7 +85,6 @@ class CallDHSs(object):
 
         for i in range(3, self.args.minP + 1):
             cutoff = "1E-" + str(i)
-            printt("starting...", cutoff)
             cmds = ["bedtools",
                     "intersect",
                     "-v",
@@ -97,21 +99,21 @@ class CallDHSs(object):
             Utils.runCmds(cmds)
 
         dhssFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + ".DHSs.bed")
-        shutil.move(peaksFnp, dhssFnp)
+        shutil.copy(peaksFnp, dhssFnp)
 
         excludedFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + ".excluded.bed")
         cmds = ["bedtools",
                 "intersect",
                 "-v",
-                "-a", os.path.join(tmpDir, self.args.DNaseBamAcc + '.' + "1E-" + str(self.args.minP) + ".bed"),
+                "-a", finalFnp,
                 "-b", dhssFnp,
                 '>', excludedFnp]
         Utils.runCmds(cmds)
 
         outputDir = "/home/mjp/output/Processed-DHSs"
         Utils.mkdir_p(outputDir)
-        shutil.move(excludedFnp, outputDir)
-        shutil.move(dhssFnp, outputDir)
+        shutil.copy(excludedFnp, outputDir)
+        shutil.copy(dhssFnp, outputDir)
 
 def parseArgs():
     parser = argparse.ArgumentParser()
