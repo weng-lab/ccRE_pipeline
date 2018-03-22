@@ -26,7 +26,6 @@ class CallDHSs(object):
     def __init__(self, args):
         self.args = args
         self.genome = args.genome
-        self.minP = 4942
 
     def run(self):
         tmpDir = tempfile.mkdtemp()
@@ -55,7 +54,7 @@ class CallDHSs(object):
         printt("Step 1 ...")
         inputFnp = bedFnp
 
-        for i in range(2, self.minP + 1):
+        for i in range(2, self.args.minP + 1):
             cutoff = "1E-" + str(i)
             printt("starting", cutoff)
             outputFnp = os.path.join(tmpDir, self.args.DNaseBamAcc + '.' + cutoff + ".all.bed")
@@ -78,8 +77,11 @@ class CallDHSs(object):
         cmds = ["""awk '{if ($3-$2+1 < 350) print $0}'""",
                 outputFnp,
                 '>', peaksFnp]
-        for i in range(3, self.minP + 1):
+        Utils.runCmds(cmds)
+
+        for i in range(3, self.args.minP + 1):
             cutoff = "1E-" + str(i)
+            printt("starting...", cutoff)
             cmds = ["bedtools",
                     "intersect",
                     "-v",
@@ -100,7 +102,7 @@ class CallDHSs(object):
         cmds = ["bedtools",
                 "intersect",
                 "-v",
-                "-a", os.path.join(tmpDir, self.args.DNaseBamAcc + '.' + "1E-" + str(self.minP) + ".bed"),
+                "-a", os.path.join(tmpDir, self.args.DNaseBamAcc + '.' + "1E-" + str(self.args.minP) + ".bed"),
                 "-b", dhssFnp,
                 '>', excludedFnp]
         Utils.runCmds(cmds)
@@ -116,6 +118,8 @@ def parseArgs():
     parser.add_argument("--genome", type = str, help = "genome")
     parser.add_argument("--DNaseExpAcc", type = str, help = "DNase experiment accession")
     parser.add_argument("--DNaseBamAcc", type = str, help = "DNase BAM file accession")
+    parser.add_argument("--minP", type = int, default=4942,
+                        help = "min Hotspot2 p-value")
     return parser.parse_args()
 
 def main():

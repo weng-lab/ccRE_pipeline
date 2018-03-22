@@ -12,7 +12,7 @@ RUN wget -q https://github.com/bedops/bedops/releases/download/v2.4.32/bedops_li
 RUN pip3 install --user six requests python-dateutil
 
 RUN mkdir -p /app/
-#COPY ./src /app/src
-#COPY ./input /app/input
+COPY ./src /app/src
+COPY ./input /app/input
 
-#ENTRYPOINT ["/bin/bash","-c"]
+ENTRYPOINT ["/bin/bash","-c"]
